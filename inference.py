@@ -18,10 +18,6 @@ def load_model(device):
     model.to(device)
     model.eval()
 
-    state = torch.load(MODEL_PATH, map_location=device)
-    print("Loaded keys:", len(state))
-    model.load_state_dict(state)
-
     return model
 
 
@@ -63,8 +59,6 @@ def main():
     postprocess(output, original_size)
 
     print("Saved result to", OUTPUT_IMAGE)
-    print("Input mean:", img_tensor.mean().item())
-    print("Output mean:", output.mean().item())
 
 
 if __name__ == "__main__":
