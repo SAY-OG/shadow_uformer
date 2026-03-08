@@ -1,36 +1,23 @@
-import os
 import torch
-import torch.nn as nn
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
 from utils.metrics import calculate_psnr, calculate_ssim
 from utils.checkpoint import save_checkpoint
-
+from losses.charbonnier import CharbonnierLoss
 
 class Trainer:
 
-    def __init__(
-        self,
-        model,
-        train_loader,
-        val_loader,
-        epochs,
-        lr,
-        device
-    ):
+    def __init__(self, model, train_loader, val_loader, epochs, lr, device):
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.epochs = epochs
         self.device = device
 
-        self.criterion = nn.L1Loss()
+        self.criterion = CharbonnierLoss(eps=1e-3)
         self.optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.optimizer,
-            T_max=epochs
-        )
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
 
         self.scaler = torch.amp.GradScaler("cuda")
         self.writer = SummaryWriter("runs")
