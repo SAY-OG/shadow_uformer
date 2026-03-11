@@ -1,6 +1,5 @@
-import os
 import torch
-import torch.nn as nn
+import gc
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
@@ -18,12 +17,10 @@ class Trainer:
         self.best_psnr = 0.0
         self.start_epoch = 0
 
-        # Charbonnier Loss handles edges better than L1
         self.criterion = CharbonnierLoss(eps=1e-3)
         self.optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
         
-        # Fixed: Attribute 'scaler' initialized here
         self.scaler = torch.amp.GradScaler("cuda")
         self.writer = SummaryWriter("runs")
 
@@ -42,7 +39,6 @@ class Trainer:
 
             print(f"Epoch {epoch+1}: Loss={train_loss:.6f} PSNR={val_psnr:.4f}")
 
-            # State dictionary for resuming
             state = {
                 'epoch': epoch + 1,
                 'state_dict': self.model.state_dict(),
@@ -52,10 +48,10 @@ class Trainer:
                 'best_psnr': self.best_psnr
             }
             
-            save_checkpoint(state, "/content/drive/MyDrive/models/latest_model.pth")
+            save_checkpoint(state, "checkpoints/latest_model.pth")
             if val_psnr > self.best_psnr:
                 self.best_psnr = val_psnr
-                save_checkpoint(state, "/content/drive/MyDrive/models/best_model.pth")
+                save_checkpoint(state, "checkpoints/best_model.pth")
 
     def _train_one_epoch(self, epoch):
         self.model.train()
@@ -63,7 +59,7 @@ class Trainer:
         bar = tqdm(self.train_loader)
         for img, target in bar:
             img, target = img.to(self.device), target.to(self.device)
-            self.optimizer.zero_grad()
+            self.optimizer.zero_grad(set_to_none=True)
 
             with torch.amp.autocast("cuda"):
                 pred = self.model(img)
@@ -75,7 +71,10 @@ class Trainer:
 
             total_loss += loss.item()
             bar.set_postfix(loss=loss.item())
-        return total_loss / len(self.train_loader)
+
+        avg_loss = total_loss / len(self.train_loader)
+        self.writer.add_scalar("Train/Loss", avg_loss, epoch)
+        return avg_loss
 
     def _validate(self, epoch):
         self.model.eval()
@@ -86,4 +85,9 @@ class Trainer:
                 pred = self.model(img)
                 psnr += calculate_psnr(pred, target).item()
                 ssim += calculate_ssim(pred, target).item()
+
+        del img, target, pred
+        gc.collect()
+        torch.cuda.empty_cache()
+
         return psnr / len(self.val_loader), ssim / len(self.val_loader)

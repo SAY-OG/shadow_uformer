@@ -19,12 +19,12 @@ def main():
     train_dataset = ISTDDataset(DATA_ROOT, "train", transform=TrainTransform(crop_size=IMAGE_SIZE))
     val_dataset = ISTDDataset(DATA_ROOT, "test", transform=ValTransform())
 
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=2)
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
+    val_loader = DataLoader(val_dataset, batch_size=2, shuffle=False, num_workers=2, persistent_workers=True)
 
     model = ShadowUformer().to(device)
 
-    resume_path = "/content/drive/MyDrive/models/latest_model.pth"
+    resume_path = "checkpoint/latest_model.pth"
     if not os.path.exists(resume_path):
         resume_path = None
 
