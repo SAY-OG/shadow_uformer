@@ -57,13 +57,15 @@ class Trainer:
         self.model.train()
         total_loss = 0
         bar = tqdm(self.train_loader)
-        for img, target in bar:
-            img, target = img.to(self.device), target.to(self.device)
+        for img, mask, target in bar:
+            img, mask, target = img.to(self.device), mask.to(self.device), target.to(self.device)
             self.optimizer.zero_grad(set_to_none=True)
 
             with torch.amp.autocast("cuda"):
                 pred = self.model(img)
-                loss = self.criterion(pred, target)
+                base_loss = self.criterion(pred, target)
+                shadow_loss = self.criterion(pred * mask, target * mask)
+                loss = base_loss + 2.0 * shadow_loss
 
             self.scaler.scale(loss).backward()
             self.scaler.step(self.optimizer)
@@ -80,7 +82,7 @@ class Trainer:
         self.model.eval()
         psnr, ssim = 0, 0
         with torch.no_grad():
-            for img, target in self.val_loader:
+            for img, mask, target in self.val_loader:
                 img, target = img.to(self.device), target.to(self.device)
                 pred = self.model(img)
                 psnr += calculate_psnr(pred, target).item()

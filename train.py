@@ -9,13 +9,12 @@ from engine.trainer import Trainer
 DATA_ROOT = "data/ISTD"
 IMAGE_SIZE = 256
 BATCH_SIZE = 4
-EPOCHS = 200
+EPOCHS = 100
 LR = 2e-4
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Fixed: Passing Transform objects instead of integers
     train_dataset = ISTDDataset(DATA_ROOT, "train", transform=TrainTransform(crop_size=IMAGE_SIZE))
     val_dataset = ISTDDataset(DATA_ROOT, "test", transform=ValTransform())
 
