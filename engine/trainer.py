@@ -1,4 +1,5 @@
 import torch
+import os
 import gc
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
@@ -8,12 +9,13 @@ from utils.checkpoint import save_checkpoint, load_checkpoint
 from losses.charbonnier import CharbonnierLoss
 
 class Trainer:
-    def __init__(self, model, train_loader, val_loader, epochs, lr, device, resume_path=None):
+    def __init__(self, model, train_loader, val_loader, epochs, lr, device, resume_path=None, save_dir='checkpoints'):
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.epochs = epochs
         self.device = device
+        self.save_dir = save_dir
         self.best_psnr = 0.0
         self.start_epoch = 0
 
@@ -25,9 +27,7 @@ class Trainer:
         self.writer = SummaryWriter("runs")
 
         if resume_path:
-            self.start_epoch = load_checkpoint(
-                resume_path, self.model, self.optimizer, self.scheduler, self.scaler
-            )
+            self.start_epoch = load_checkpoint(resume_path, self.model, self.optimizer, self.scheduler, self.scaler)
             print(f"Resuming from epoch {self.start_epoch}")
 
     def train(self):
@@ -48,10 +48,10 @@ class Trainer:
                 'best_psnr': self.best_psnr
             }
             
-            save_checkpoint(state, "checkpoints/latest_model.pth")
+            save_checkpoint(state, os.path.join(self.save_dir, "latest_model.pth"))
             if val_psnr > self.best_psnr:
                 self.best_psnr = val_psnr
-                save_checkpoint(state, "checkpoints/best_model.pth")
+                save_checkpoint(state,  os.path.join(self.save_dir, "best_model.pth"))
 
     def _train_one_epoch(self, epoch):
         self.model.train()
@@ -87,8 +87,6 @@ class Trainer:
                 pred = self.model(img)
                 psnr += calculate_psnr(pred, target).item()
                 ssim += calculate_ssim(pred, target).item()
-
-        del img, target, pred
         gc.collect()
         torch.cuda.empty_cache()
 

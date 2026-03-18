@@ -16,17 +16,15 @@ def load_model(checkpoint_path, device):
     return model
 
 def get_tapered_window(patch_size, device):
-    """Creates a 2D linear ramp window to blend patches smoothly."""
     vec = torch.linspace(0, 1, steps=patch_size//4, device=device)
     middle = torch.ones(patch_size - patch_size//2, device=device)
     ramp = torch.cat([vec, middle, vec.flip(0)])
     window_2d = ramp.unsqueeze(0) * ramp.unsqueeze(1)
-    return window_2d.unsqueeze(0).unsqueeze(0) # [1, 1, H, W]
+    return window_2d.unsqueeze(0).unsqueeze(0)
 
 def tiled_inference(model, img_tensor, patch_size=256, stride=128, device='cuda'):
     b, c, h, w = img_tensor.shape
     
-    # 1. Pad image so it's at least one patch size
     pad_h = max(0, patch_size - h)
     pad_w = max(0, patch_size - w)
     img_padded = F.pad(img_tensor, (0, pad_w, 0, pad_h), mode='reflect')
@@ -36,7 +34,6 @@ def tiled_inference(model, img_tensor, patch_size=256, stride=128, device='cuda'
     weight_mask = torch.zeros_like(img_padded)
     window = get_tapered_window(patch_size, device)
 
-    # 2. Generate coordinates that GUARANTEE boundary coverage
     def get_coords(full_size, patch_s, strd):
         coords = list(range(0, full_size - patch_s + 1, strd))
         if coords[-1] != full_size - patch_s:
@@ -46,7 +43,6 @@ def tiled_inference(model, img_tensor, patch_size=256, stride=128, device='cuda'
     y_coords = get_coords(ph, patch_size, stride)
     x_coords = get_coords(pw, patch_size, stride)
 
-    # 3. Process Patches
     for y in y_coords:
         for x in x_coords:
             patch = img_padded[:, :, y:y+patch_size, x:x+patch_size]
@@ -57,8 +53,6 @@ def tiled_inference(model, img_tensor, patch_size=256, stride=128, device='cuda'
             output[:, :, y:y+patch_size, x:x+patch_size] += res * window
             weight_mask[:, :, y:y+patch_size, x:x+patch_size] += window
 
-    # 4. Final Blend and Crop
-    # Add a tiny epsilon (1e-8) to avoid division by zero
     output = output / (weight_mask + 1e-8)
     return output[:, :, :h, :w]
 
@@ -66,10 +60,8 @@ def run_inference(model, image_path, output_path, device):
     img = Image.open(image_path).convert('RGB')
     input_tensor = TF.to_tensor(img).unsqueeze(0).to(device)
     
-    # Reduced stride (128) provides more overlap for better shadow blending
     output_tensor = tiled_inference(model, input_tensor, patch_size=256, stride=128, device=device)
     
-    # Clamp to 0-1 range to ensure valid pixel values
     output_tensor = torch.clamp(output_tensor, 0, 1)
     
     output_img = TF.to_pil_image(output_tensor.squeeze(0).cpu())

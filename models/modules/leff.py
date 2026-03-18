@@ -2,11 +2,6 @@ import torch.nn as nn
 
 
 class LeFF(nn.Module):
-    """
-    Local Enhanced Feed Forward Network
-    Linear → Depthwise Conv → GELU → Linear
-    """
-
     def __init__(self, dim, hidden_dim=None):
         super(LeFF, self).__init__()
 

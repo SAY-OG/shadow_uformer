@@ -3,10 +3,6 @@ import torch.nn as nn
 
 
 class MultiScaleModulator(nn.Module):
-    """
-    Lightweight learnable feature modulator.
-    """
-
     def __init__(self, dim):
         super(MultiScaleModulator, self).__init__()
 
