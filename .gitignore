@@ -1,9 +1,8 @@
 *.png
 *.jpg
-*.pth
 .venv/
 data/
-outputs/
+checkpoints/
 runs/
 *.log
 __pycache__/

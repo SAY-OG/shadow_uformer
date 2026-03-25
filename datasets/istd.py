@@ -23,13 +23,14 @@ class ISTDDataset(Dataset):
 
     def __getitem__(self, idx):
         name = self.images[idx]
+
         img = np.array(Image.open(os.path.join(self.dir_A, name)).convert("RGB"))
         mask = np.array(Image.open(os.path.join(self.dir_B, name)).convert("L"))
         target = np.array(Image.open(os.path.join(self.dir_C, name)).convert("RGB"))
 
         if self.transform:
             return self.transform(img, mask, target)
+        mask_tensor = F.to_tensor(mask)
+        mask_tensor = (mask_tensor > 0.5).float()
 
-        return F.to_tensor(img), F.to_tensor(mask), F.to_tensor(target)
-
-
+        return F.to_tensor(img), mask_tensor, F.to_tensor(target)

@@ -1,10 +1,9 @@
 import torch
 
-def calculate_psnr(pred, target):
-    mse = torch.mean((pred - target) ** 2)
-    if mse == 0:
-        return 100
-    return 20 * torch.log10(1.0 / torch.sqrt(mse))
+def calculate_psnr(pred, target, data_range=1.0):
+    mse = torch.nn.functional.mse_loss(pred, target)
+    if mse == 0: return torch.tensor(100.0).to(pred.device)
+    return 10 * torch.log10(data_range**2 / mse)
 
 def calculate_ssim(pred, target):
     C1 = 0.01 ** 2
