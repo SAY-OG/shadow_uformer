@@ -1,5 +1,5 @@
 import torch
-from torchmetrics import StructuralSimilarityIndexMeasure
+from torchmetrics.image import StructuralSimilarityIndexMeasure
 
 def calculate_psnr(pred, target, data_range=1.0):
     mse = torch.nn.functional.mse_loss(pred, target)

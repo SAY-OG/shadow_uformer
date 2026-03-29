@@ -17,6 +17,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--warmup_epochs', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=16) 
+    parser.add_argument('--num_workers', type=int, default=4) 
     parser.add_argument('--lr', type=float, default=2e-4)
     parser.add_argument('--img_size', type=int, default=256)
     
@@ -27,8 +28,8 @@ def main():
     train_dataset = ISTDDataset(args.data_root, "train", transform=TrainTransform(crop_size=args.img_size))
     val_dataset = ISTDDataset(args.data_root, "test", transform=ValTransform(crop_size=args.img_size))
 
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=args.num_workers)
 
     model = ShadowUformer().to(device)
     
