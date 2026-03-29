@@ -80,7 +80,7 @@ class Trainer:
         self.model.eval()
         psnr_val, ssim_val = 0.0, 0.0
         with torch.no_grad():
-            for img, target in self.val_loader:
+            for img, _, target in self.val_loader:
                 img, target = img.to(self.device), target.to(self.device)
                 pred = self.model(img)
                 
