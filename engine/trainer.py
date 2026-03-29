@@ -2,13 +2,14 @@ import torch
 import os
 from tqdm import tqdm
 from torch.nn.utils import clip_grad_norm_
+from torch.optim.lr_scheduler import SequentialLR, LinearLR, CosineAnnealingLR
 
 from utils.metrics import calculate_psnr, calculate_ssim
 from utils.checkpoint import save_checkpoint, load_checkpoint
 from losses.joint_loss import JointLoss
 
 class Trainer:
-    def __init__(self, model, train_loader, val_loader, epochs, lr, device, save_dir, resume_path=None):
+    def __init__(self, model, train_loader, val_loader, epochs, warmup_epochs, lr, device, save_dir, resume_path=None):
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
@@ -20,14 +21,14 @@ class Trainer:
 
         self.criterion = JointLoss(device)
         self.optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
+        warmup_scheduler = LinearLR(self.optimizer, start_factor=0.01, total_iters=warmup_epochs)
+        cosine_scheduler = CosineAnnealingLR(self.optimizer, T_max=epochs - warmup_epochs)
+        self.scheduler = SequentialLR(self.optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[warmup_epochs])
         
         self.scaler = torch.amp.GradScaler("cuda")
 
         if resume_path:
-            self.start_epoch = load_checkpoint(
-                resume_path, self.model, self.optimizer, self.scheduler, self.scaler
-            )
+            self.start_epoch = load_checkpoint(resume_path, self.model, self.optimizer, self.scheduler, self.scaler)
             print(f"Resuming from epoch {self.start_epoch}")
 
     def train(self):
@@ -37,7 +38,7 @@ class Trainer:
 
             self.scheduler.step()
 
-            print(f"Epoch {epoch+1}: Loss={train_loss:.6f} PSNR={val_psnr:.4f} SSIM={val_ssim:.4f}")
+            print(f"Epoch {epoch}: Loss={train_loss:.6f} PSNR={val_psnr:.4f} SSIM={val_ssim:.4f}")
 
             if val_psnr > self.best_psnr:
                 self.best_psnr = val_psnr
