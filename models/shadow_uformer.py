@@ -49,6 +49,8 @@ class ShadowUformer(nn.Module):
         self.out_conv = nn.Conv2d(base_dim, 3, 3, padding=1)
 
     def forward(self, x):
+        input_img = x
+
         e1 = self.block1(self.enc1(x))
         e2 = self.block2(self.down1(e1))
         e3 = self.block3(self.down2(e2))
@@ -64,5 +66,7 @@ class ShadowUformer(nn.Module):
         e1_mod = self.mod2(e1)
         d2 = self.caf2(d2, e1_mod)
         d2 = self.dec2(d2)
+
+        out = self.out_conv(d2) + input_img
         
-        return torch.clamp(self.out_conv(d2), 0, 1)
+        return torch.clamp(out, 0, 1)

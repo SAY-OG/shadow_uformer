@@ -95,6 +95,30 @@ class SwinWindowAttention(nn.Module):
 
         attn = attn + relative_bias.unsqueeze(0)
 
+        if self.shift:
+            img_mask = torch.zeros((1,1,H,W), device=x.device)
+            h_slices = (slice(0, -self.window_size),
+                        slice(-self.window_size, -self.window_size // 2),
+                        slice(-self.window_size // 2, None))
+            w_slices = (slice(0, -self.window_size),
+                        slice(-self.window_size, -self.window_size // 2),
+                        slice(-self.window_size // 2, None))
+            
+            cnt = 0
+            for h in h_slices:
+                for w in w_slices:
+                    img_mask[:,:,h,w] = cnt
+                    cnt += 1
+
+            mask_windows = window_partition(img_mask, self.window_size)
+            mask_windows = mask_windows.view(-1, self.window_size * self.window_size)
+            attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
+            attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
+            
+            nW = mask_windows.shape[0]
+            attn = attn.view(B, nW, self.num_heads, ws * ws, ws * ws) + attn_mask.unsqueeze(1).unsqueeze(0)
+            attn = attn.view(-1, self.num_heads, ws * ws, ws * ws)
+
         attn = attn.softmax(dim=-1)
 
         out = (attn @ v).transpose(1, 2).reshape(
